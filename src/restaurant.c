@@ -11,6 +11,19 @@
 #include <asm-generic/socket.h>
 #include "include/log.h"
 
+
+
+
+typedef struct {
+    char name[100];
+    struct {
+        char ingredient[100];
+        int quantity;
+    } ingredients[MAX_INGREDIENT_COUNT];
+    int ingredientCount;
+} Food;
+
+
 typedef struct restaurant{
     int UDP_port;
     int TCP_port;
