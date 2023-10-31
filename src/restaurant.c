@@ -84,6 +84,42 @@ void username_check(restaurant* restaurant_){
     memset(restaurant_ -> buf, 0, BUFFER_SIZE);
     sprintf(restaurant_ -> buf, "%s|%d|%s|", USERNAMECHECK, restaurant_ -> TCP_port, username);
     send_message(restaurant_, restaurant_ -> buf);
+    fd_set tmp;
+    FD_ZERO(&tmp);
+    FD_SET(restaurant_ -> server_fd, &tmp);
+    int max_fd = restaurant_ -> server_fd;
+    struct timeval tv;
+    tv.tv_sec = 2;
+    tv.tv_usec = 0;
+    while(1){
+        if(select(max_fd + 1, &tmp, NULL, NULL, &tv) < 0){
+            logError("select");
+        }
+        if(FD_ISSET(restaurant_ -> server_fd, &tmp)){
+            int new_socket = acceptClient(restaurant_ -> server_fd);
+            char tmp_buf[BUF_SIZE];
+            memset(tmp_buf, 0, BUF_SIZE);
+            recv(new_socket, tmp_buf, BUF_SIZE, 0);
+            char* command = strtok(tmp_buf, DELIM);
+            if(strcmp(command, USERNAMEDENIED) == 0){
+                write(STDOUT_FILENO, ">>username already exists!please try again>>", 44);
+                memset(username, 0, MAX_NAME_SIZE);
+                int x = read(STDIN_FILENO, username, MAX_NAME_SIZE);
+                username[n-1] = '\0';
+                strcpy(restaurant_ -> user_name, username);
+                memset(restaurant_ -> buf, 0, BUFFER_SIZE);
+                sprintf(restaurant_ -> buf, "%s|%d|%s|", USERNAMECHECK, restaurant_ -> TCP_port, username);
+                send_message(restaurant_, restaurant_ -> buf);
+            }
+        }
+        else{
+            char tmp_message [BUFFER_SIZE];
+            memset(tmp_message, 0, BUF_SIZE);
+            sprintf(tmp_message, ">>welcome %s as a restaurant\n", restaurant_ -> user_name);
+            write(STDOUT_FILENO, tmp_message, BUFFER_SIZE);
+            return;
+        }
+    }
 }
 
 void handle_command(restaurant* restaurant_, char* input_line){
@@ -97,23 +133,11 @@ void handle_command(restaurant* restaurant_, char* input_line){
         if(port != restaurant_ -> TCP_port){
             if(strcmp(tmp_name, restaurant_ -> user_name) == 0){
                 sprintf(restaurant_ -> buf, "%s|", USERNAMEDENIED);
+                int fd = connectServer(port);
+                send(fd, restaurant_ -> buf, BUFFER_SIZE, 0);
             }
-            else{
-                sprintf(restaurant_ -> buf, "%s|", USERNAMEGRANT);
-            }
-            int fd = connectServer(port);
-            send(fd, restaurant_ -> buf, BUFFER_SIZE, 0);
+            
         }
-    }
-    else if(strcmp(command, USERNAMEDENIED) == 0){
-        write(STDOUT_FILENO, ">>username already exists!please try again\n", 44);
-        username_check(restaurant_);
-    }
-    else if(strcmp(command, USERNAMEGRANT) == 0){
-        char tmp_message [BUFFER_SIZE];
-        memset(tmp_message, 0, BUF_SIZE);
-        sprintf(tmp_message, ">>welcome %s as a restaurant\n", restaurant_ -> user_name);
-        write(STDOUT_FILENO, tmp_message, BUFFER_SIZE);
     }
     else if(strcmp(command, START_WORKING) == 0){
         restaurant_ -> status = OPEN;
