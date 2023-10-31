@@ -11,7 +11,6 @@
 #include <arpa/inet.h>
 #include <sys/time.h>
 
-
 #define MAX_PORT_NUMBER 50000
 #define MIN_PORT_NUMBER 5000
 #define BUFFER_SIZE 1024

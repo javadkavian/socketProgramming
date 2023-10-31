@@ -122,6 +122,8 @@ void username_check(restaurant* restaurant_){
     }
 }
 
+
+
 void handle_command(restaurant* restaurant_, char* input_line){
     char tmp_buf[BUF_SIZE];
     memset(tmp_buf, 0, BUF_SIZE);
