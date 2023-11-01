@@ -19,9 +19,11 @@ typedef struct {
     struct {
         char ingredient[100];
         int quantity;
-    } ingredients[MAX_INGREDIENT_COUNT];
+    } ingredients[10];
     int ingredientCount;
 } Food;
+
+
 
 
 typedef struct restaurant{
@@ -37,6 +39,8 @@ typedef struct restaurant{
     char user_name[MAX_NAME_SIZE];
     int status;
 }restaurant;
+
+
 
 
 void config_restaurant(restaurant* restaurant_, int argc, char* argv[]){
