@@ -24,6 +24,8 @@
 #define START_WORKING "start working"
 #define ANNOUNCE_OPEN_RESTAURANT "arop"
 #define BREAK "break"
+#define MAX_FOOD_COUNT 20
+#define MAX_INGREDIENT_COUNT 10
 
 int acceptClient(int server_fd);
 int generate_random_port();
