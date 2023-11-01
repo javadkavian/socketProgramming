@@ -32,12 +32,14 @@
 #define MAX_DISH_NAME_LENGTH 20
 #define SHOW_MENU "show menu"
 #define SHOW_RESTAURANTS "show restaurants"
+#define SHOW_RESTAURANTS_ "show restaurants_"
 #define I_AM_RESTAURANT "I am restaurant"
 
 int acceptClient(int server_fd);
 int generate_random_port();
 int connectServer(int port);
 void concatenate_string(char* s, char* s1);
+
 
 
 

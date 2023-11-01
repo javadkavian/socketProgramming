@@ -133,6 +133,7 @@ void config_customer(customer* customer_, int argc, char* argv[]){
     memset(customer_ -> user_name, 0, MAX_NAME_SIZE);
     memset(customer_ -> menu, 0, BUF_SIZE);
     fillMenuFromJson(customer_);
+    write(STDOUT_FILENO, ">>please enter your username:", 30);
 }
 
 
@@ -144,7 +145,6 @@ void send_message(customer* customer_, char* message){
 void username_check(customer* customer_){
     char username[MAX_NAME_SIZE];
     memset(username, 0, MAX_NAME_SIZE);
-    write(STDOUT_FILENO, ">>please enter your username:", 30);
     int n = read(STDIN_FILENO, username, MAX_NAME_SIZE);
     username[n-1] = '\0';
     strcpy(customer_ -> user_name, username);
@@ -167,16 +167,13 @@ void username_check(customer* customer_){
             char tmp_buf[BUF_SIZE];
             memset(tmp_buf, 0, BUF_SIZE);
             recv(new_socket, tmp_buf, BUF_SIZE, 0);
+            close(new_socket);
+            FD_CLR(new_socket, &tmp);
             char* command = strtok(tmp_buf, DELIM);
             if(strcmp(command, USERNAMEDENIED) == 0){
                 write(STDOUT_FILENO, ">>username already exists!please try again>>", 44);
-                memset(username, 0, MAX_NAME_SIZE);
-                int x = read(STDIN_FILENO, username, MAX_NAME_SIZE);
-                username[n-1] = '\0';
-                strcpy(customer_ -> user_name, username);
-                memset(customer_ -> buf, 0, BUFFER_SIZE);
-                sprintf(customer_ -> buf, "%s|%d|%s|", USERNAMECHECK, customer_ -> TCP_port, username);
-                send_message(customer_, customer_ -> buf);
+                username_check(customer_);
+                return;
             }
         }
         else{
@@ -215,8 +212,9 @@ void handle_command(customer* customer_, char* input_line){
     else if(strcmp(command, SHOW_RESTAURANTS) == 0){
         char msg [BUF_SIZE];
         memset(msg, 0, BUF_SIZE);
-        sprintf(msg, "%s|%d|", SHOW_RESTAURANTS, customer_ -> TCP_port);
+        sprintf(msg, "%s|%d|", SHOW_RESTAURANTS_, customer_ -> TCP_port);
         send_message(customer_, msg);
+    
     }
     else if(strcmp(command, I_AM_RESTAURANT) == 0){
         char* restaurant_name = strtok(NULL, DELIM);
@@ -269,9 +267,13 @@ void run_customer(customer* customer_){
                     handle_command(customer_, customer_ -> buf);
                 }
                 else{
-                    memset(customer_ -> buf, 0, BUFFER_SIZE);
-                    recv(i, customer_ -> buf, BUFFER_SIZE, 0);
-                    handle_command(customer_, customer_ -> buf);
+                    char msg[BUFFER_SIZE];
+                    memset(msg, 0, BUF_SIZE);
+                    // memset(customer_ -> buf, 0, BUFFER_SIZE);
+                    recv(i, msg, BUFFER_SIZE, 0);
+                    close(i);
+                    FD_CLR(i, &customer_ -> master_set);
+                    handle_command(customer_, msg);
                 }
             }
         }

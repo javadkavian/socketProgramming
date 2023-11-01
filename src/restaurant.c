@@ -184,6 +184,7 @@ void config_restaurant(restaurant* restaurant_, int argc, char* argv[]){
     restaurant_ -> status = OPEN;
     parseJSON(restaurant_);
     fillIngredientsArray(restaurant_);
+    write(STDOUT_FILENO, ">>please enter your username:", 30);
     
 }
 
@@ -197,7 +198,6 @@ void send_message(restaurant* restaurant_, char* message){
 void username_check(restaurant* restaurant_){
     char username[MAX_NAME_SIZE];
     memset(username, 0, MAX_NAME_SIZE);
-    write(STDOUT_FILENO, ">>please enter your username:", 30);
     int n = read(STDIN_FILENO, username, MAX_NAME_SIZE);
     username[n-1] = '\0';
     strcpy(restaurant_ -> user_name, username);
@@ -220,16 +220,13 @@ void username_check(restaurant* restaurant_){
             char tmp_buf[BUF_SIZE];
             memset(tmp_buf, 0, BUF_SIZE);
             recv(new_socket, tmp_buf, BUF_SIZE, 0);
+            close(new_socket);
+            FD_CLR(new_socket, &tmp);
             char* command = strtok(tmp_buf, DELIM);
             if(strcmp(command, USERNAMEDENIED) == 0){
                 write(STDOUT_FILENO, ">>username already exists!please try again>>", 44);
-                memset(username, 0, MAX_NAME_SIZE);
-                int x = read(STDIN_FILENO, username, MAX_NAME_SIZE);
-                username[n-1] = '\0';
-                strcpy(restaurant_ -> user_name, username);
-                memset(restaurant_ -> buf, 0, BUFFER_SIZE);
-                sprintf(restaurant_ -> buf, "%s|%d|%s|", USERNAMECHECK, restaurant_ -> TCP_port, username);
-                send_message(restaurant_, restaurant_ -> buf);
+                username_check(restaurant_);
+                return;
             }
         }
         else{
@@ -273,7 +270,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
         //check pending orders
         restaurant_ -> status = CLOSE;
     }
-    else if(strcmp(command, SHOW_RESTAURANTS) == 0){
+    else if(strcmp(command, SHOW_RESTAURANTS_) == 0){
         char tmp_msg[BUF_SIZE];
         memset(tmp_msg, 0, BUF_SIZE);
         sprintf(tmp_msg, "%s|%s|%d|", I_AM_RESTAURANT, restaurant_ -> user_name, restaurant_ -> TCP_port);
@@ -326,6 +323,8 @@ void run_restaurant(restaurant* restaurant_){
                 else{
                     memset(restaurant_ -> buf, 0, BUFFER_SIZE);
                     recv(i, restaurant_ -> buf, BUFFER_SIZE, 0);
+                    close(i);
+                    FD_CLR(i, &restaurant_ -> master_set);
                     handle_command(restaurant_, restaurant_ -> buf);
                 }
             }
