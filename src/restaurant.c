@@ -25,76 +25,6 @@ typedef struct {
 
 
 
-Food* parseJSON() {
-    FILE* file = fopen("./src/recipes.json", "r");
-    if (file == NULL) {
-        printf("Failed to open the JSON file.\n");
-        return NULL;
-    }
-    fseek(file, 0, SEEK_END);
-    long fileSize = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char* jsonData = (char*)malloc(fileSize + 1);
-    fread(jsonData, 1, fileSize, file);
-    fclose(file);
-    jsonData[fileSize] = '\0';
-    cJSON* root = cJSON_Parse(jsonData);
-    free(jsonData);
-    if (root == NULL) {
-        printf("Failed to parse JSON data.\n");
-        return NULL;
-    }
-    cJSON* foodItem = root->child;
-    int foodCount = 0;
-
-    // Allocate memory for the food array
-    Food* foodArray = (Food*)malloc(MAX_FOOD_COUNT * sizeof(Food));
-    if (foodArray == NULL) {
-        printf("Failed to allocate memory for the food array.\n");
-        cJSON_Delete(root);
-        return NULL;
-    }
-
-    while (foodItem != NULL && foodCount < MAX_FOOD_COUNT) {
-        const char* foodName = foodItem->string;
-        cJSON* ingredient = foodItem->child;
-        int ingredientCount = 0;
-        while (ingredient != NULL && ingredientCount < MAX_INGREDIENT_COUNT) {
-            const char* ingredientName = ingredient->string;
-            int quantity = ingredient->valueint;
-            strcpy(foodArray[foodCount].ingredients[ingredientCount].ingredient, ingredientName);
-            foodArray[foodCount].ingredients[ingredientCount].quantity = quantity;
-            ingredientCount++;
-
-            ingredient = ingredient->next;
-        }
-
-        strcpy(foodArray[foodCount].name, foodName);
-        foodArray[foodCount].ingredientCount = ingredientCount;
-
-        foodCount++;
-        foodItem = foodItem->next;
-    }
-
-    cJSON_Delete(root);
-
-    // Resize the allocated memory to match the actual food count
-    foodArray = (Food*)realloc(foodArray, foodCount * sizeof(Food));
-    if (foodArray == NULL) {
-        printf("Failed to resize the memory for the food array.\n");
-        return NULL;
-    }
-
-    return foodArray;
-}
-
-
-
-
-
-
-
-
 typedef struct restaurant{
     int UDP_port;
     int TCP_port;
@@ -108,7 +38,64 @@ typedef struct restaurant{
     char user_name[MAX_NAME_SIZE];
     int status;
     Food foods[MAX_FOOD_COUNT];
+    int foodCount;
 }restaurant;
+
+void parseJSON(restaurant* rest) {
+    FILE* file = fopen("./src/recipes.json", "r");
+    if (file == NULL) {
+        printf("Failed to open the JSON file.\n");
+        return;
+    }
+    fseek(file, 0, SEEK_END);
+    long fileSize = ftell(file);
+    fseek(file, 0, SEEK_SET);
+    char* jsonData = (char*)malloc(fileSize + 1);
+    fread(jsonData, 1, fileSize, file);
+    fclose(file);
+    jsonData[fileSize] = '\0';
+    cJSON* root = cJSON_Parse(jsonData);
+    free(jsonData);
+    if (root == NULL) {
+        printf("Failed to parse JSON data.\n");
+        return;
+    }
+    cJSON* foodItem = root->child;
+    int foodCount = 0;
+
+    while (foodItem != NULL && foodCount < MAX_FOOD_COUNT) {
+        const char* foodName = foodItem->string;
+        cJSON* ingredient = foodItem->child;
+        int ingredientCount = 0;
+        while (ingredient != NULL && ingredientCount < MAX_INGREDIENT_COUNT) {
+            const char* ingredientName = ingredient->string;
+            int quantity = ingredient->valueint;
+            strcpy(rest->foods[foodCount].ingredients[ingredientCount].ingredient, ingredientName);
+            rest->foods[foodCount].ingredients[ingredientCount].quantity = quantity;
+            ingredientCount++;
+
+            ingredient = ingredient->next;
+        }
+
+        strcpy(rest->foods[foodCount].name, foodName);
+        rest->foods[foodCount].ingredientCount = ingredientCount;
+
+        foodCount++;
+        foodItem = foodItem->next;
+    }
+
+    cJSON_Delete(root);
+
+    rest->foodCount = foodCount;
+}
+
+
+
+
+
+
+
+
 
 
 
@@ -152,9 +139,8 @@ void config_restaurant(restaurant* restaurant_, int argc, char* argv[]){
     }
     memset(restaurant_ -> user_name, 0, MAX_NAME_SIZE);
     restaurant_ -> status = OPEN;
-    Food* parsed_foods = parseJSON();
-    memcpy(restaurant_ -> foods, parsed_foods, MAX_FOOD_COUNT*sizeof(Food));
-    free(parsed_foods);
+    parseJSON(restaurant_);
+    
 }
 
 
@@ -300,7 +286,7 @@ void run_restaurant(restaurant* restaurant_){
 int main(int argc, char* argv[]){
     restaurant restaurant_;
     config_restaurant(&restaurant_, argc, argv);
-    for(int i = 0 ; i < sizeof(restaurant_.foods) ; i++){
+    for(int i = 0 ; i < restaurant_.foodCount ; i++){
         printf("%s :\ningridients:\n", restaurant_.foods[i].name);
         for(int j = 0 ; j < restaurant_.foods[i].ingredientCount;j++){
             printf("%s:%d\n", restaurant_.foods[i].ingredients[j].ingredient, restaurant_.foods[i].ingredients[j].quantity);
