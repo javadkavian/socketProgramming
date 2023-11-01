@@ -13,13 +13,16 @@
 #include "include/cJSON.h"
 
 
+typedef struct ingredient{
+    char ingredient[100];
+    int quantity;
+}ingredient;
+
+
 
 typedef struct {
     char name[100];
-    struct {
-        char ingredient[100];
-        int quantity;
-    } ingredients[MAX_INGREDIENT_COUNT];
+    ingredient ingredients[MAX_INGREDIENT_COUNT];
     int ingredientCount;
 } Food;
 
@@ -39,7 +42,13 @@ typedef struct restaurant{
     int status;
     Food foods[MAX_FOOD_COUNT];
     int foodCount;
+    ingredient ingredients[NUMBER_OF_INGREDIENT];
+    int ingredientCount;
 }restaurant;
+
+
+
+
 
 void parseJSON(restaurant* rest) {
     FILE* file = fopen("./src/recipes.json", "r");
@@ -92,7 +101,36 @@ void parseJSON(restaurant* rest) {
 
 
 
-
+void fillIngredientsArray(restaurant* rest) {
+    memset(rest->ingredients, 0, sizeof(rest->ingredients));
+    int ingredientCount = 0;
+    for (int i = 0; i < rest->foodCount; i++) {
+        Food* food = &(rest->foods[i]);
+        for (int j = 0; j < food->ingredientCount; j++) {
+            ingredient* foodIngredient = &(food->ingredients[j]);
+            int found = 0;
+            for (int k = 0; k < NUMBER_OF_INGREDIENT; k++) {
+                ingredient* restIngredient = &(rest->ingredients[k]);
+                if (strcmp(foodIngredient->ingredient, restIngredient->ingredient) == 0) {
+                    found = 1;
+                    break;
+                }
+            }
+            if (!found) {
+                for (int k = 0; k < NUMBER_OF_INGREDIENT; k++) {
+                    ingredient* restIngredient = &(rest->ingredients[k]);
+                    if (strlen(restIngredient->ingredient) == 0) {
+                        strcpy(restIngredient->ingredient, foodIngredient->ingredient);
+                        restIngredient->quantity = INITIAL_ING_VALUE;
+                        ingredientCount++;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    rest->ingredientCount = ingredientCount;
+}
 
 
 
@@ -140,6 +178,7 @@ void config_restaurant(restaurant* restaurant_, int argc, char* argv[]){
     memset(restaurant_ -> user_name, 0, MAX_NAME_SIZE);
     restaurant_ -> status = OPEN;
     parseJSON(restaurant_);
+    fillIngredientsArray(restaurant_);
     
 }
 
@@ -286,14 +325,8 @@ void run_restaurant(restaurant* restaurant_){
 int main(int argc, char* argv[]){
     restaurant restaurant_;
     config_restaurant(&restaurant_, argc, argv);
-    for(int i = 0 ; i < restaurant_.foodCount ; i++){
-        printf("%s :\ningridients:\n", restaurant_.foods[i].name);
-        for(int j = 0 ; j < restaurant_.foods[i].ingredientCount;j++){
-            printf("%s:%d\n", restaurant_.foods[i].ingredients[j].ingredient, restaurant_.foods[i].ingredients[j].quantity);
-        }
-    }
-    // username_check(&restaurant_);
-    // run_restaurant(&restaurant_);
+    username_check(&restaurant_);
+    run_restaurant(&restaurant_);
 }
 
 

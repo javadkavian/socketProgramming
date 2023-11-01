@@ -26,6 +26,10 @@
 #define BREAK "break"
 #define MAX_FOOD_COUNT 20
 #define MAX_INGREDIENT_COUNT 10
+#define NUMBER_OF_INGREDIENT 20
+#define INITIAL_ING_VALUE 1000
+#define MAX_DISHES 20
+#define MAX_DISH_NAME_LENGTH 20
 
 int acceptClient(int server_fd);
 int generate_random_port();
