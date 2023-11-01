@@ -13,6 +13,11 @@
 #include "include/cJSON.h"
 
 
+typedef struct {
+    int port;
+    char food_name[MAX_DISH_NAME_LENGTH];
+}order;
+
 typedef struct ingredient{
     char ingredient[100];
     int quantity;
@@ -252,6 +257,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
                 sprintf(restaurant_ -> buf, "%s|", USERNAMEDENIED);
                 int fd = connectServer(port);
                 send(fd, restaurant_ -> buf, BUFFER_SIZE, 0);
+                close(fd);
             }
             
         }
@@ -279,7 +285,6 @@ void run_restaurant(restaurant* restaurant_){
     FD_SET(restaurant_ -> UDP_fd, &restaurant_ -> master_set);
     FD_SET(STDIN_FILENO, &restaurant_ -> master_set);
     fd_set working_set;
-    int iteration = 1;
     while (1)
     {
         working_set = restaurant_ -> master_set;

@@ -30,6 +30,7 @@
 #define INITIAL_ING_VALUE 1000
 #define MAX_DISHES 20
 #define MAX_DISH_NAME_LENGTH 20
+#define SHOW_MENU "show menu"
 
 int acceptClient(int server_fd);
 int generate_random_port();
