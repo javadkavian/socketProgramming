@@ -6,6 +6,11 @@
 #include <unistd.h>
 #include "include/user.h"
 #include "include/log.h"
+#include <termios.h>
+#include <unistd.h>
+
+
+
 
 
 typedef struct
@@ -30,7 +35,19 @@ typedef struct
 
 
 
+void enableRawMode() {
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &raw);
+    raw.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
 
+void disableRawMode() {
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &raw);
+    raw.c_lflag |= (ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
 
 void fillMenuFromJson(customer* cust)
 {
@@ -223,6 +240,58 @@ void handle_command(customer* customer_, char* input_line){
         memset(msg, 0, BUF_SIZE);
         sprintf(msg, "%s %s\n", restaurant_name, port_str);
         write(STDOUT_FILENO, msg, BUF_SIZE);
+    }
+    else if(strcmp(command, ORDER_FOOD_C) == 0){
+        write(STDOUT_FILENO, ">>what food do you want?", 25);
+        char food_name[MAX_NAME_SIZE];
+        memset(food_name, 0, MAX_NAME_SIZE);
+        int n = read(STDIN_FILENO, food_name, MAX_NAME_SIZE);
+        food_name[n-1] = '\0';
+        write(STDOUT_FILENO, ">>port of restaurant : ", 24);
+        char port_str[6];
+        memset(port_str, 0, 6);
+        int x = read(STDIN_FILENO, port_str, 6);
+        port_str[x-1] = '\0';
+        int port = atoi(port_str);
+        char tmp_msg[BUF_SIZE];
+        memset(tmp_msg, 0, BUF_SIZE);
+        sprintf(tmp_msg, "%s|%d|%s|%s|", ORDER_FOOD_R, customer_ -> TCP_port, food_name, customer_ -> user_name);
+        int fd = connectServer(port);
+        send(fd, tmp_msg, BUF_SIZE, 0);
+        close(fd);
+        fd_set tmp_fd_set;
+        FD_ZERO(&tmp_fd_set);
+        FD_SET(customer_ -> server_fd, &tmp_fd_set);
+        int max_fd = customer_ -> server_fd;
+        struct timeval tv;
+        tv.tv_sec = 120;
+        tv.tv_usec = 0;
+        write(STDOUT_FILENO, "waiting for restaurant's response...\n", 37);
+        enableRawMode();
+        while(1){
+            if(select(max_fd + 1, &tmp_fd_set, 0, 0, &tv) < 0){
+                logError("select");
+            }
+            if(FD_ISSET(customer_ -> server_fd, &tmp_fd_set)){
+                int new_sock = acceptClient(customer_ -> server_fd);
+                char recv_msg[BUF_SIZE];
+                memset(recv_msg, 0, BUF_SIZE);
+                recv(new_sock, recv_msg, BUF_SIZE, 0);
+                write(STDOUT_FILENO, recv_msg, BUF_SIZE);
+                break;
+            }
+            else{
+                logInfo("timeOut");
+                char msg[BUF_SIZE];
+                memset(msg, 0, BUF_SIZE);
+                sprintf(msg, "%s|%d|", ORDER_EXPIRD, customer_ -> TCP_port);
+                int fd_ = connectServer(port);
+                send(fd_, msg, BUF_SIZE, 0);
+                close(fd);
+                break;
+            }
+        }
+        disableRawMode();
     }
 }
 

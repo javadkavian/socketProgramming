@@ -16,6 +16,9 @@
 typedef struct {
     int port;
     char food_name[MAX_DISH_NAME_LENGTH];
+    int active;
+    int accept;
+    char customer_name[MAX_NAME_SIZE];
 }order;
 
 typedef struct ingredient{
@@ -49,6 +52,8 @@ typedef struct restaurant{
     int foodCount;
     ingredient ingredients[NUMBER_OF_INGREDIENT];
     int ingredientCount;
+    order orders[MAX_ORDER_NUMS];
+    int order_count;
 }restaurant;
 
 
@@ -181,6 +186,7 @@ void config_restaurant(restaurant* restaurant_, int argc, char* argv[]){
         logError("listen");
     }
     memset(restaurant_ -> user_name, 0, MAX_NAME_SIZE);
+    restaurant_ -> order_count = 0;
     restaurant_ -> status = OPEN;
     parseJSON(restaurant_);
     fillIngredientsArray(restaurant_);
@@ -279,6 +285,45 @@ void handle_command(restaurant* restaurant_, char* input_line){
         int fd = connectServer(port);
         send(fd, tmp_msg, BUFFER_SIZE, 0);
         close(fd);
+    }
+    else if(strcmp(command, ORDER_FOOD_R) == 0){
+        write(STDOUT_FILENO, "new order!\n", 12);
+        char* port_str = strtok(NULL, DELIM);
+        int port = atoi(port_str);
+        char* food_name = strtok(NULL, DELIM);
+        char* customer_name = strtok(NULL, DELIM);
+        strcpy(restaurant_ -> orders[restaurant_ -> order_count].customer_name, customer_name);
+        strcpy(restaurant_ -> orders[restaurant_ -> order_count].food_name, food_name);
+        restaurant_ -> orders[restaurant_ -> order_count].accept = 0;
+        restaurant_ -> orders[restaurant_ -> order_count].active = 1;
+        restaurant_ -> orders[restaurant_ -> order_count].port = port;
+        restaurant_ -> order_count += 1;
+        
+        // write(STDOUT_FILENO, "order taken\n", 12); log kon badan
+    }
+    else if(strcmp(command, ORDER_EXPIRD) == 0){
+        char* port_str = strtok(NULL, DELIM);
+        int port = atoi(port_str);
+        for(int i = 0 ; i < restaurant_ -> order_count ; i++){
+            if(restaurant_ -> orders[i].port == port){
+                restaurant_ -> orders[i].active = 0;
+                //order expired
+            }
+
+        }
+    }
+    else if(strcmp(command, SHOW_REST_REQUESTS) == 0){
+        write(STDOUT_FILENO, "username/port/order\n", 21);
+        char tmp_msg[BUF_SIZE];
+        for(int i = 0 ; i < restaurant_ -> order_count ; i++){
+            if(restaurant_ -> orders[i].active == 1){
+                memset(tmp_msg, 0, BUF_SIZE);
+                sprintf(tmp_msg, "%s %d %s\n",
+                restaurant_ -> orders[i].customer_name,
+                restaurant_ ->orders[i].port, restaurant_ -> orders[i].food_name);
+                write(STDOUT_FILENO, tmp_msg, BUF_SIZE);
+            }
+        }
     }
 }
 

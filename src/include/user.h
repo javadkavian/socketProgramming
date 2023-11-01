@@ -34,6 +34,12 @@
 #define SHOW_RESTAURANTS "show restaurants"
 #define SHOW_RESTAURANTS_ "show restaurants_"
 #define I_AM_RESTAURANT "I am restaurant"
+#define ORDER_FOOD_C "order food"
+#define ORDER_FOOD_R "order food_r"
+#define ANSWER_REQ "answer request"
+#define MAX_ORDER_NUMS 50
+#define ORDER_EXPIRD "order expired"
+#define SHOW_REST_REQUESTS "show requests list"
 
 int acceptClient(int server_fd);
 int generate_random_port();
