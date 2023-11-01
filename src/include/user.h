@@ -40,6 +40,18 @@
 #define MAX_ORDER_NUMS 50
 #define ORDER_EXPIRD "order expired"
 #define SHOW_REST_REQUESTS "show requests list"
+#define FOOD_ACCEPTED "food accepted"
+#define FOOD_REJECTED "food rejected"
+#define SHOW_SALE_HISTORY "show sales history"
+#define SHOW_SUPPLYERS_R "show suppliers"
+#define SHOW_SUPPLYERS_S "show suppliers_s"
+#define I_AM_SUPPLYAER "I am supplyer"
+#define REQ_ING_R  "request ingredient"
+#define REQ_ING_S "req_ing_s"
+#define ING_ACC "ing acc"
+#define ING_REJ "ing_rej"
+#define BUSY "busy"
+#define REST_CLOSED "rest cloesd"
 
 int acceptClient(int server_fd);
 int generate_random_port();

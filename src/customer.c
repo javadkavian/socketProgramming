@@ -277,7 +277,17 @@ void handle_command(customer* customer_, char* input_line){
                 char recv_msg[BUF_SIZE];
                 memset(recv_msg, 0, BUF_SIZE);
                 recv(new_sock, recv_msg, BUF_SIZE, 0);
-                write(STDOUT_FILENO, recv_msg, BUF_SIZE);
+                char disp_msg[BUF_SIZE];
+                memset(disp_msg, 0, BUF_SIZE);
+                char* ans = strtok(recv_msg, DELIM);
+                char* rest_name = strtok(NULL, DELIM);
+                if(strcmp(ans, FOOD_ACCEPTED) == 0){
+                    sprintf(disp_msg, "%s restaurant accepted your order and your food is ready\n", rest_name);
+                }
+                else{
+                    sprintf(disp_msg, "%s restaurant rejected your order\n", rest_name);
+                }
+                write(STDOUT_FILENO, disp_msg, BUF_SIZE);
                 break;
             }
             else{
@@ -292,6 +302,13 @@ void handle_command(customer* customer_, char* input_line){
             }
         }
         disableRawMode();
+    }
+    else if(strcmp(command, REST_CLOSED) == 0){
+        char* name = strtok(NULL, DELIM);
+        char msg[BUF_SIZE];
+        memset(msg, 0, BUF_SIZE);
+        sprintf(msg, "%s restaurant closed\n", name);
+        write(STDOUT_FILENO, msg, BUF_SIZE);
     }
 }
 

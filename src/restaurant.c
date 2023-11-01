@@ -11,9 +11,10 @@
 #include <asm-generic/socket.h>
 #include "include/log.h"
 #include "include/cJSON.h"
+#include <termios.h>
+#include <unistd.h>
 
-
-typedef struct {
+typedef struct order{
     int port;
     char food_name[MAX_DISH_NAME_LENGTH];
     int active;
@@ -28,7 +29,7 @@ typedef struct ingredient{
 
 
 
-typedef struct {
+typedef struct Food{
     char name[100];
     ingredient ingredients[MAX_INGREDIENT_COUNT];
     int ingredientCount;
@@ -57,7 +58,19 @@ typedef struct restaurant{
 }restaurant;
 
 
+void enableRawMode() {
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &raw);
+    raw.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
 
+void disableRawMode() {
+    struct termios raw;
+    tcgetattr(STDIN_FILENO, &raw);
+    raw.c_lflag |= (ICANON | ECHO);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
+}
 
 
 void parseJSON(restaurant* rest) {
@@ -245,11 +258,56 @@ void username_check(restaurant* restaurant_){
     }
 }
 
+int find_order_by_port(restaurant* restaurant_, int port){
+    for(int i = 0 ; i < restaurant_ -> order_count ; i++){
+        if(restaurant_ -> orders[i].port == port){
+            return i;
+        }
+    }
+    return -1;
+}
 
+
+
+int enough_by_number(restaurant* restaurant_, int x, char* ing_name){
+    for(int i = 0 ; i < restaurant_ -> ingredientCount ; i++){
+        if(strcmp(restaurant_ -> ingredients[i].ingredient, ing_name) == 0){
+            if(restaurant_ -> ingredients[i].quantity >= x){
+                return 1;
+            }
+            else{
+                return 0;
+            }
+        }
+    }
+}
+
+
+int supply_for_food_available(restaurant* restaurant_, int index){
+    int ans = 1;
+    for(int i = 0 ; i < restaurant_ -> foodCount ; i++){
+        if(strcmp(restaurant_ -> foods[i].name, restaurant_ -> orders[index].food_name) == 0){
+            for(int j = 0; j < restaurant_ -> foods[i].ingredientCount ; j++){
+                if(enough_by_number(restaurant_, restaurant_->foods[i].ingredients[j].quantity,
+                 restaurant_ -> foods[i].ingredients[j].ingredient) == 0){
+                    ans = 0;
+                }
+            }            
+        }
+    }
+    return ans;
+}
+
+
+void add_ing(restaurant* restaurant_, char* ing, int qunt){
+    for(int i = 0 ; i < restaurant_ -> ingredientCount ; i++){
+        if(strcmp(ing, restaurant_ -> ingredients[i].ingredient) == 0){
+            restaurant_ -> ingredients[i].quantity += qunt;
+        }
+    }
+}
 
 void handle_command(restaurant* restaurant_, char* input_line){
-    char tmp_buf[BUF_SIZE];
-    memset(tmp_buf, 0, BUF_SIZE);
     char* command = strtok(input_line, DELIM);
     if(strcmp(command, USERNAMECHECK) == 0){
         char* port_num_str = strtok(NULL, DELIM);
@@ -273,8 +331,18 @@ void handle_command(restaurant* restaurant_, char* input_line){
         send_message(restaurant_, tmp_message);
     }
     else if(strcmp(command, BREAK) == 0){
-        //check pending orders
-        restaurant_ -> status = CLOSE;
+        int flag = 0;
+        for(int i = 0 ; i < restaurant_ -> order_count ; i++){
+            if(restaurant_ -> orders[i].active == 1){
+                flag = 1;
+            }
+        }
+        if(flag == 0){
+            restaurant_ -> status = CLOSE;
+            char tmp_msg[BUF_SIZE];
+            memset(tmp_msg, 0, BUF_SIZE);
+            sprintf(tmp_msg, "%s|%s|", REST_CLOSED, restaurant_ -> user_name);
+        }
     }
     else if(strcmp(command, SHOW_RESTAURANTS_) == 0){
         char tmp_msg[BUF_SIZE];
@@ -307,6 +375,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
         for(int i = 0 ; i < restaurant_ -> order_count ; i++){
             if(restaurant_ -> orders[i].port == port){
                 restaurant_ -> orders[i].active = 0;
+                restaurant_ -> orders[i].accept = 0;
                 //order expired
             }
 
@@ -325,6 +394,134 @@ void handle_command(restaurant* restaurant_, char* input_line){
             }
         }
     }
+    else if(strcmp(command, ANSWER_REQ) == 0){
+        write(STDOUT_FILENO, ">> port of request : ", 22);
+        char port_str[10];
+        memset(port_str, 0, 10);
+        int n = read(STDIN_FILENO, port_str, 10);
+        port_str[n-1] = '\0';
+        int port = atoi(port_str);
+        int index = find_order_by_port(restaurant_, port);
+        write(STDOUT_FILENO, "your answer (YES/NO): ", 22);
+        char ans[10];
+        memset(ans, 0, 10);
+        int x = read(STDIN_FILENO, ans, 10);
+        char msg[BUF_SIZE];
+        memset(msg, 0, BUF_SIZE);
+        if((supply_for_food_available(restaurant_, index) == 1) && (strcmp(ans, "YES") == 0)){
+            sprintf(msg, "%s|%s|", FOOD_ACCEPTED, restaurant_ -> user_name);
+            restaurant_ -> orders[index].accept = 1;
+
+        }
+        else{
+            sprintf(msg, "%s|%s|", FOOD_REJECTED, restaurant_ -> user_name);
+            restaurant_ -> orders[index].accept = 0;
+        }
+        int fd = connectServer(port);
+        send(fd, msg, BUF_SIZE, 0);
+        close(fd);
+    }
+    else if(strcmp(command, SHOW_SALE_HISTORY) == 0){
+        write(STDOUT_FILENO, "username/order/result\n", 23);
+        char tmp_msg[BUF_SIZE];
+        for(int i = 0 ; i < restaurant_ -> order_count ; i++){
+            memset(tmp_msg, 0, BUF_SIZE);
+            if(restaurant_ -> orders[i].accept == 1){
+                sprintf(tmp_msg, "%s %s accepted\n", restaurant_ -> orders[i].customer_name, restaurant_ -> orders[i].food_name);
+            }
+            else{
+                sprintf(tmp_msg, "%s %s denied\n", restaurant_ -> orders[i].customer_name, restaurant_ -> orders[i].food_name);
+            }
+            write(STDOUT_FILENO, tmp_msg, BUF_SIZE);
+        }
+    }
+    else if(strcmp(command, SHOW_SUPPLYERS_R) == 0){
+        char msg[BUF_SIZE];
+        memset(msg, 0, BUF_SIZE);
+        sprintf(msg, "%s|%d|", SHOW_SUPPLYERS_S, restaurant_ -> TCP_port);
+        send_message(restaurant_, msg);
+    }
+    else if(strcmp(command, I_AM_SUPPLYAER) == 0){
+        char* supplyer_name = strtok(NULL, DELIM);
+        char* port_str = strtok(NULL, DELIM);
+        char msg [BUF_SIZE];
+        memset(msg, 0, BUF_SIZE);
+        sprintf(msg, "%s %s\n", supplyer_name, port_str);
+        write(STDOUT_FILENO, msg, BUF_SIZE);
+    }
+    else if(strcmp(command, REQ_ING_R) == 0){
+        write(STDOUT_FILENO, ">>port of supplier : ", 22);
+        char port_str[6];
+        memset(port_str, 0, 6);
+        int x = read(STDIN_FILENO, port_str, 6);
+        port_str[x-1] = '\0';
+        int port = atoi(port_str);
+        write(STDOUT_FILENO, ">>name of ingedient : ", 23);
+        char ing_name[MAX_NAME_SIZE];
+        memset(ing_name, 0, MAX_NAME_SIZE);
+        int n = read(STDIN_FILENO, ing_name, MAX_NAME_SIZE);
+        ing_name[n-1] = '\0';
+        write(STDOUT_FILENO, ">>quantity of ingeredient : ", 29);
+        char quantity[20];
+        memset(quantity, 0, 20);
+        int y = read(STDIN_FILENO, quantity, 20);
+        quantity[y-1] = '\0';
+        char tmp_msg[BUF_SIZE];
+        memset(tmp_msg, 0, BUF_SIZE);
+        sprintf(tmp_msg, "%s|%d|%s|%s|%s|", REQ_ING_S, restaurant_ -> TCP_port, ing_name, quantity, restaurant_ -> user_name);
+        int fd = connectServer(port);
+        send(fd, tmp_msg, BUF_SIZE, 0);
+        close(fd);
+        fd_set tmp_fd_set;
+        FD_ZERO(&tmp_fd_set);
+        FD_SET(restaurant_ -> server_fd, &tmp_fd_set);
+        int max_fd = restaurant_ -> server_fd;
+        struct timeval tv;
+        tv.tv_sec = 90;
+        tv.tv_usec = 0;
+        write(STDOUT_FILENO, "waiting for supplier's response...\n", 36);
+        enableRawMode();
+        while(1){
+            if(select(max_fd + 1, &tmp_fd_set, 0, 0, &tv) < 0){
+                logError("select");
+            }
+            if(FD_ISSET(restaurant_ -> server_fd, &tmp_fd_set)){
+                int new_sock = acceptClient(restaurant_ -> server_fd);
+                char recv_msg[BUF_SIZE];
+                memset(recv_msg, 0, BUF_SIZE);
+                recv(new_sock, recv_msg, BUF_SIZE, 0);
+                char disp_msg[BUF_SIZE];
+                memset(disp_msg, 0, BUF_SIZE);
+                char* ans = strtok(recv_msg, DELIM);
+                char* sup_name = strtok(NULL, DELIM);
+                if(strcmp(ans, ING_ACC) == 0){
+                    sprintf(disp_msg, "%s supplier accepted your order and your ingredient is ready\n", sup_name);
+                    add_ing(restaurant_, ing_name, atoi(quantity));
+                }
+                else if(strcmp(ans, BUSY) == 0){
+                    sprintf(disp_msg, "%s is now busy\n", sup_name);
+                }
+                else{
+                    sprintf(disp_msg, "%s supplier rejected your order\n", sup_name);
+                }
+                write(STDOUT_FILENO, disp_msg, BUF_SIZE);
+                break;
+            }
+            else{
+                logInfo("timeOut");
+                char msg[BUF_SIZE];
+                memset(msg, 0, BUF_SIZE);
+                sprintf(msg, "%s|%d|", ORDER_EXPIRD, restaurant_ -> TCP_port);
+                int fd_ = connectServer(port);
+                send(fd_, msg, BUF_SIZE, 0);
+                close(fd);
+                break;
+            }
+        }
+        disableRawMode();
+    }
+
+
 }
 
 
