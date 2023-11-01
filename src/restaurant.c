@@ -13,13 +13,15 @@
 #include "include/cJSON.h"
 
 
+typedef struct ingredient{
+    char ingredient[100];
+    int quantity;
+}ingredient;
+
 
 typedef struct {
     char name[100];
-    struct {
-        char ingredient[100];
-        int quantity;
-    } ingredients[MAX_INGREDIENT_COUNT];
+    ingredient ingredients[MAX_INGREDIENT_COUNT];
     int ingredientCount;
 } Food;
 
@@ -39,6 +41,7 @@ typedef struct restaurant{
     int status;
     Food foods[MAX_FOOD_COUNT];
     int foodCount;
+    ingredient ingredients[NUMBER_OF_INGREDIENT];
 }restaurant;
 
 void parseJSON(restaurant* rest) {
@@ -70,10 +73,10 @@ void parseJSON(restaurant* rest) {
         while (ingredient != NULL && ingredientCount < MAX_INGREDIENT_COUNT) {
             const char* ingredientName = ingredient->string;
             int quantity = ingredient->valueint;
-            strcpy(rest->foods[foodCount].ingredients[ingredientCount].ingredient, ingredientName);
-            rest->foods[foodCount].ingredients[ingredientCount].quantity = quantity;
-            ingredientCount++;
+            strcpy(rest->ingredients[ingredientCount].ingredient, ingredientName);
+            rest->ingredients[ingredientCount].quantity = 100;
 
+            ingredientCount++;
             ingredient = ingredient->next;
         }
 
@@ -90,6 +93,15 @@ void parseJSON(restaurant* rest) {
 }
 
 
+void printIngredients(const restaurant* rest) {
+    printf("Ingredients:\n");
+    for (int i = 0; i < MAX_INGREDIENT_COUNT; i++) {
+        const ingredient* ing = &rest->ingredients[i];
+        if (strcmp(ing->ingredient, "") != 0) {
+            printf("%s - Quantity: %d\n", ing->ingredient, ing->quantity);
+        }
+    }
+}
 
 
 
@@ -286,12 +298,7 @@ void run_restaurant(restaurant* restaurant_){
 int main(int argc, char* argv[]){
     restaurant restaurant_;
     config_restaurant(&restaurant_, argc, argv);
-    for(int i = 0 ; i < restaurant_.foodCount ; i++){
-        printf("%s :\ningridients:\n", restaurant_.foods[i].name);
-        for(int j = 0 ; j < restaurant_.foods[i].ingredientCount;j++){
-            printf("%s:%d\n", restaurant_.foods[i].ingredients[j].ingredient, restaurant_.foods[i].ingredients[j].quantity);
-        }
-    }
+    printIngredients(&restaurant_);
     // username_check(&restaurant_);
     // run_restaurant(&restaurant_);
 }
