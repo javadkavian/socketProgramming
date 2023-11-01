@@ -273,6 +273,16 @@ void handle_command(restaurant* restaurant_, char* input_line){
         //check pending orders
         restaurant_ -> status = CLOSE;
     }
+    else if(strcmp(command, SHOW_RESTAURANTS) == 0){
+        char tmp_msg[BUF_SIZE];
+        memset(tmp_msg, 0, BUF_SIZE);
+        sprintf(tmp_msg, "%s|%s|%d|", I_AM_RESTAURANT, restaurant_ -> user_name, restaurant_ -> TCP_port);
+        char*port_num_str = strtok(NULL, DELIM);
+        int port = atoi(port_num_str);
+        int fd = connectServer(port);
+        send(fd, tmp_msg, BUFFER_SIZE, 0);
+        close(fd);
+    }
 }
 
 

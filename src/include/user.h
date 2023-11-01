@@ -31,6 +31,8 @@
 #define MAX_DISHES 20
 #define MAX_DISH_NAME_LENGTH 20
 #define SHOW_MENU "show menu"
+#define SHOW_RESTAURANTS "show restaurants"
+#define I_AM_RESTAURANT "I am restaurant"
 
 int acceptClient(int server_fd);
 int generate_random_port();

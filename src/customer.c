@@ -136,8 +136,8 @@ void config_customer(customer* customer_, int argc, char* argv[]){
 }
 
 
-void send_message(customer* restaurant_, char* message){
-    sendto(restaurant_ -> UDP_fd, message, strlen(message), 0,(struct sockaddr *)&restaurant_ -> UDP_address, sizeof(restaurant_ -> UDP_address));
+void send_message(customer* customer_, char* message){
+    sendto(customer_ -> UDP_fd, message, strlen(message), 0,(struct sockaddr *)&customer_ -> UDP_address, sizeof(customer_ -> UDP_address));
 }
 
 
@@ -211,6 +211,20 @@ void handle_command(customer* customer_, char* input_line){
     }
     else if(strcmp(command, SHOW_MENU) == 0){
         write(STDOUT_FILENO, customer_ -> menu, BUF_SIZE);
+    }
+    else if(strcmp(command, SHOW_RESTAURANTS) == 0){
+        char msg [BUF_SIZE];
+        memset(msg, 0, BUF_SIZE);
+        sprintf(msg, "%s|%d|", SHOW_RESTAURANTS, customer_ -> TCP_port);
+        send_message(customer_, msg);
+    }
+    else if(strcmp(command, I_AM_RESTAURANT) == 0){
+        char* restaurant_name = strtok(NULL, DELIM);
+        char* port_str = strtok(NULL, DELIM);
+        char msg [BUF_SIZE];
+        memset(msg, 0, BUF_SIZE);
+        sprintf(msg, "%s %s\n", restaurant_name, port_str);
+        write(STDOUT_FILENO, msg, BUF_SIZE);
     }
 }
 
