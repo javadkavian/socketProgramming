@@ -296,13 +296,35 @@ int supply_for_food_available(restaurant* restaurant_, int index){
         }
     }
     return ans;
+
 }
 
 
-void add_ing(restaurant* restaurant_, char* ing, int qunt){
+int add_ing(restaurant* restaurant_, char* ing, int qunt){
+    int ing_available = 0;
     for(int i = 0 ; i < restaurant_ -> ingredientCount ; i++){
         if(strcmp(ing, restaurant_ -> ingredients[i].ingredient) == 0){
+            ing_available = 1;
             restaurant_ -> ingredients[i].quantity += qunt;
+        }
+    }
+    return ing_available;
+}
+
+void shrink_by_number(restaurant* restaurant_, int shrink_value, char* ing_name){
+    for(int i = 0 ; i < restaurant_ -> ingredientCount ; i++){
+        if(strcmp(restaurant_ -> ingredients[i].ingredient, ing_name) == 0){
+            restaurant_ -> ingredients[i].quantity -= shrink_value;
+        }
+    }
+}
+
+void supply_shrink(restaurant* restaurant_, int index){
+    for(int i = 0 ; i < restaurant_ -> foodCount ; i++){
+        if(strcmp(restaurant_ -> foods[i].name, restaurant_ -> orders[index].food_name) == 0){
+            for(int j = 0; j < restaurant_ -> foods[i].ingredientCount ; j++){
+                shrink_by_number(restaurant_, restaurant_ -> foods[i].ingredients[j].quantity, restaurant_ -> foods[i].ingredients[j].ingredient);
+            }            
         }
     }
 }
@@ -342,6 +364,22 @@ void handle_command(restaurant* restaurant_, char* input_line){
             char tmp_msg[BUF_SIZE];
             memset(tmp_msg, 0, BUF_SIZE);
             sprintf(tmp_msg, "%s|%s|", REST_CLOSED, restaurant_ -> user_name);
+            send_message(restaurant_, tmp_msg);
+        }
+        else{
+            write(STDOUT_FILENO, "you have unanswered orderes!\n");
+        }
+    }
+    else if(strcmp(command, ORDER_EXPIRD) == 0){
+        char* port_str = strtok(NULL, DELIM);
+        int port = atoi(port_str);
+        for(int i = 0 ; i < restaurant_ -> order_count ; i++){
+            if(restaurant_ -> orders[i].port == port){
+                restaurant_ -> orders[i].active = 0;
+                restaurant_ -> orders[i].accept = 0;
+                //order expired
+            }
+
         }
     }
     else if(strcmp(command, SHOW_RESTAURANTS_) == 0){
@@ -368,19 +406,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
         restaurant_ -> order_count += 1;
         
         // write(STDOUT_FILENO, "order taken\n", 12); log kon badan
-    }
-    else if(strcmp(command, ORDER_EXPIRD) == 0){
-        char* port_str = strtok(NULL, DELIM);
-        int port = atoi(port_str);
-        for(int i = 0 ; i < restaurant_ -> order_count ; i++){
-            if(restaurant_ -> orders[i].port == port){
-                restaurant_ -> orders[i].active = 0;
-                restaurant_ -> orders[i].accept = 0;
-                //order expired
-            }
-
-        }
-    }
+    }   
     else if(strcmp(command, SHOW_REST_REQUESTS) == 0){
         write(STDOUT_FILENO, "username/port/order\n", 21);
         char tmp_msg[BUF_SIZE];
@@ -406,9 +432,11 @@ void handle_command(restaurant* restaurant_, char* input_line){
         char ans[10];
         memset(ans, 0, 10);
         int x = read(STDIN_FILENO, ans, 10);
+        ans[x-1] = '\0';
         char msg[BUF_SIZE];
         memset(msg, 0, BUF_SIZE);
         if((supply_for_food_available(restaurant_, index) == 1) && (strcmp(ans, "YES") == 0)){
+            supply_shrink(restaurant_, index);
             sprintf(msg, "%s|%s|", FOOD_ACCEPTED, restaurant_ -> user_name);
             restaurant_ -> orders[index].accept = 1;
 
@@ -494,9 +522,8 @@ void handle_command(restaurant* restaurant_, char* input_line){
                 memset(disp_msg, 0, BUF_SIZE);
                 char* ans = strtok(recv_msg, DELIM);
                 char* sup_name = strtok(NULL, DELIM);
-                if(strcmp(ans, ING_ACC) == 0){
+                if((strcmp(ans, ING_ACC) == 0) && (add_ing(restaurant_, ing_name, atoi(quantity) == 0))){
                     sprintf(disp_msg, "%s supplier accepted your order and your ingredient is ready\n", sup_name);
-                    add_ing(restaurant_, ing_name, atoi(quantity));
                 }
                 else if(strcmp(ans, BUSY) == 0){
                     sprintf(disp_msg, "%s is now busy\n", sup_name);
