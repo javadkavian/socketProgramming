@@ -1,0 +1,3 @@
+[usernameCheck|21931|javad|] broadcasted on UDP port
+javad logged in as customer
+ali closed restaurant

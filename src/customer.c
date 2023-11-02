@@ -358,6 +358,13 @@ void handle_command(customer* customer_, char* input_line){
         sprintf(logmsg, "%s closed restaurant\n", name);
         log_msg(customer_, logmsg);
     }
+    else if(strcmp(command, ANNOUNCE_OPEN_RESTAURANT) == 0){
+        char* name = strtok(NULL, DELIM);
+        char tmp_buf[BUF_SIZE];
+        memset(tmp_buf, 0, BUF_SIZE);
+        sprintf(tmp_buf, "restaurant %s opened!\n", name);
+        write(STDOUT_FILENO, tmp_buf, BUF_SIZE);
+    }
 }
 
 

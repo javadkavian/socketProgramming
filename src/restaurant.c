@@ -374,7 +374,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
         restaurant_ -> status = OPEN;
         char tmp_message[BUF_SIZE];
         memset(tmp_message, 0, BUF_SIZE);
-        sprintf(tmp_message, "%s|%s restaurant opened!|", ANNOUNCE_OPEN_RESTAURANT, restaurant_ -> user_name);
+        sprintf(tmp_message, "%s|%s|", ANNOUNCE_OPEN_RESTAURANT, restaurant_ -> user_name);
         send_message(restaurant_, tmp_message);
         log_msg(restaurant_, "restaurant opened\n");
     }

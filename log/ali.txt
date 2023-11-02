@@ -1,0 +1,3 @@
+ali logged in as restaurant
+restaurant closed
+restaurant opened

@@ -1,0 +1,6 @@
+binded to TCP port : 9209 and UDP port : 9090
+listening for connections
+recipes parsed from json file
+binded to TCP port : 21931 and UDP port : 9090
+listening for new connection...
+menu parsed from json file
