@@ -52,6 +52,8 @@
 #define ING_REJ "ing_rej"
 #define BUSY "busy"
 #define REST_CLOSED "rest cloesd"
+#define LOG_DIR "log"
+#define LOG_EXT ".txt"
 
 int acceptClient(int server_fd);
 int generate_random_port();

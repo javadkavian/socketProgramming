@@ -123,6 +123,21 @@ void parseJSON(restaurant* rest) {
 
 
 
+void log_msg(restaurant* restaurant_, char* msg){
+    char * filename = malloc(strlen(LOG_DIR) + 1 + strlen(LOG_EXT));
+    sprintf(filename, "%s/%s%s", LOG_DIR, restaurant_ -> user_name, LOG_EXT);
+    int fd = open(filename, O_RDWR | O_APPEND | O_CREAT, 0644);
+    free(filename);
+    if(fd < 0){
+        logError("open");
+        return;
+    }
+    if(write(fd, msg, strlen(msg)) < 0){
+        logError("write");
+    }
+    close(fd);
+}
+
 
 void fillIngredientsArray(restaurant* rest) {
     memset(rest->ingredients, 0, sizeof(rest->ingredients));
@@ -195,14 +210,20 @@ void config_restaurant(restaurant* restaurant_, int argc, char* argv[]){
         restaurant_ -> TCP_port = generate_random_port();
         restaurant_ -> TCP_address.sin_port = htons(restaurant_ -> TCP_port);
     }
+    char logmsg[BUF_SIZE];
+    memset(logmsg, 0, BUF_SIZE);
+    sprintf(logmsg, "binded to TCP port : %d and UDP port : %d\n", restaurant_ -> TCP_port, restaurant_ -> UDP_port);
+    log_msg(restaurant_, logmsg);
     if(listen(restaurant_ -> server_fd, 20) < 0){
         logError("listen");
     }
+    log_msg(restaurant_, "listening for connections\n");
     memset(restaurant_ -> user_name, 0, MAX_NAME_SIZE);
     restaurant_ -> order_count = 0;
     restaurant_ -> status = OPEN;
     parseJSON(restaurant_);
     fillIngredientsArray(restaurant_);
+    log_msg(restaurant_, "recipes parsed from json file\n");
     write(STDOUT_FILENO, ">>please enter your username:", 30);
     
 }
@@ -252,6 +273,10 @@ void username_check(restaurant* restaurant_){
             char tmp_message [BUFFER_SIZE];
             memset(tmp_message, 0, BUF_SIZE);
             sprintf(tmp_message, ">>welcome %s as a restaurant\n", restaurant_ -> user_name);
+            char logmsg[BUF_SIZE];
+            memset(logmsg, 0, BUF_SIZE);
+            sprintf(logmsg, "%s logged in as restaurant\n", restaurant_ -> user_name);
+            log_msg(restaurant_, logmsg);
             write(STDOUT_FILENO, tmp_message, BUFFER_SIZE);
             return;
         }
@@ -351,6 +376,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
         memset(tmp_message, 0, BUF_SIZE);
         sprintf(tmp_message, "%s|%s restaurant opened!|", ANNOUNCE_OPEN_RESTAURANT, restaurant_ -> user_name);
         send_message(restaurant_, tmp_message);
+        log_msg(restaurant_, "restaurant opened\n");
     }
     else if(strcmp(command, BREAK) == 0){
         int flag = 0;
@@ -365,9 +391,10 @@ void handle_command(restaurant* restaurant_, char* input_line){
             memset(tmp_msg, 0, BUF_SIZE);
             sprintf(tmp_msg, "%s|%s|", REST_CLOSED, restaurant_ -> user_name);
             send_message(restaurant_, tmp_msg);
+            log_msg(restaurant_, "restaurant closed\n");
         }
         else{
-            write(STDOUT_FILENO, "you have unanswered orderes!\n");
+            write(STDOUT_FILENO, "you have unanswered orderes!\n", 30);
         }
     }
     else if(strcmp(command, ORDER_EXPIRD) == 0){
@@ -377,7 +404,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
             if(restaurant_ -> orders[i].port == port){
                 restaurant_ -> orders[i].active = 0;
                 restaurant_ -> orders[i].accept = 0;
-                //order expired
+                log_msg(restaurant_, "order expired\n");
             }
 
         }
@@ -404,8 +431,8 @@ void handle_command(restaurant* restaurant_, char* input_line){
         restaurant_ -> orders[restaurant_ -> order_count].active = 1;
         restaurant_ -> orders[restaurant_ -> order_count].port = port;
         restaurant_ -> order_count += 1;
+        log_msg(restaurant_, "recieved order\n");
         
-        // write(STDOUT_FILENO, "order taken\n", 12); log kon badan
     }   
     else if(strcmp(command, SHOW_REST_REQUESTS) == 0){
         write(STDOUT_FILENO, "username/port/order\n", 21);
@@ -445,9 +472,14 @@ void handle_command(restaurant* restaurant_, char* input_line){
             sprintf(msg, "%s|%s|", FOOD_REJECTED, restaurant_ -> user_name);
             restaurant_ -> orders[index].accept = 0;
         }
+        restaurant_ -> orders[index].active = 0;
         int fd = connectServer(port);
         send(fd, msg, BUF_SIZE, 0);
         close(fd);
+        char logmsg[BUF_SIZE];
+        memset(logmsg, 0, BUF_SIZE);
+        sprintf(logmsg, "request of port %d answered\n", port);
+        log_msg(restaurant_, logmsg);
     }
     else if(strcmp(command, SHOW_SALE_HISTORY) == 0){
         write(STDOUT_FILENO, "username/order/result\n", 23);
@@ -508,7 +540,12 @@ void handle_command(restaurant* restaurant_, char* input_line){
         tv.tv_sec = 90;
         tv.tv_usec = 0;
         write(STDOUT_FILENO, "waiting for supplier's response...\n", 36);
+        char logmsg[BUF_SIZE];
+        memset(logmsg, 0, BUF_SIZE);
+        sprintf(logmsg, "request sent to supplier %d\n", port);
+        log_msg(restaurant_, logmsg);
         enableRawMode();
+        log_msg(restaurant_, "console locked\n");
         while(1){
             if(select(max_fd + 1, &tmp_fd_set, 0, 0, &tv) < 0){
                 logError("select");
@@ -546,6 +583,7 @@ void handle_command(restaurant* restaurant_, char* input_line){
             }
         }
         disableRawMode();
+        log_msg(restaurant_, "console unlocked\n");
     }
 
 

@@ -49,6 +49,25 @@ void disableRawMode() {
     tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw);
 }
 
+
+
+
+void log_msg(customer* customer_, char* msg){
+    char * filename = malloc(strlen(LOG_DIR) + 1 + strlen(LOG_EXT));
+    sprintf(filename, "%s/%s%s", LOG_DIR, customer_ -> user_name, LOG_EXT);
+    int fd = open(filename, O_RDWR | O_APPEND | O_CREAT, 0644);
+    free(filename);
+    if(fd < 0){
+        logError("open");
+        return;
+    }
+    if(write(fd, msg, strlen(msg)) < 0){
+        logError("write");
+    }
+    close(fd);
+}
+
+
 void fillMenuFromJson(customer* cust)
 {
     FILE* file = fopen("./src/recipes.json", "r");
@@ -144,18 +163,28 @@ void config_customer(customer* customer_, int argc, char* argv[]){
         customer_ -> TCP_port = generate_random_port();
         customer_ -> TCP_address.sin_port = htons(customer_ -> TCP_port);
     }
+    char logmsg[BUF_SIZE];
+    memset(logmsg, 0, BUF_SIZE);
+    sprintf(logmsg, "binded to TCP port : %d and UDP port : %d\n", customer_ -> TCP_port, customer_ -> UDP_port);
+    log_msg(customer_, logmsg);
     if(listen(customer_ -> server_fd, 20) < 0){
         logError("listen");
     }
+    log_msg(customer_, "listening for new connection...\n");
     memset(customer_ -> user_name, 0, MAX_NAME_SIZE);
     memset(customer_ -> menu, 0, BUF_SIZE);
     fillMenuFromJson(customer_);
+    log_msg(customer_, "menu parsed from json file\n");
     write(STDOUT_FILENO, ">>please enter your username:", 30);
 }
 
 
 void send_message(customer* customer_, char* message){
     sendto(customer_ -> UDP_fd, message, strlen(message), 0,(struct sockaddr *)&customer_ -> UDP_address, sizeof(customer_ -> UDP_address));
+    char logmsg[BUF_SIZE];
+    memset(logmsg, 0, BUF_SIZE);
+    sprintf(logmsg, "[%s] broadcasted on UDP port\n", message);
+    log_msg(customer_, logmsg);
 }
 
 
@@ -197,6 +226,10 @@ void username_check(customer* customer_){
             char tmp_message [BUFFER_SIZE];
             memset(tmp_message, 0, BUF_SIZE);
             sprintf(tmp_message, ">>welcome %s as a customer\n", customer_ -> user_name);
+            char logmsg[BUF_SIZE];
+            memset(logmsg, 0, BUF_SIZE);
+            sprintf(logmsg, "%s logged in as customer\n", customer_ -> user_name);
+            log_msg(customer_, logmsg);
             write(STDOUT_FILENO, tmp_message, BUFFER_SIZE);
             return;
         }
@@ -218,6 +251,7 @@ void handle_command(customer* customer_, char* input_line){
                 sprintf(customer_ -> buf, "%s|", USERNAMEDENIED);
                 int fd = connectServer(port);
                 send(fd, customer_ -> buf, BUFFER_SIZE, 0);
+                log_msg(customer_, "username denied sent\n");
                 close(fd);
             }
             
@@ -225,6 +259,10 @@ void handle_command(customer* customer_, char* input_line){
     }
     else if(strcmp(command, SHOW_MENU) == 0){
         write(STDOUT_FILENO, customer_ -> menu, BUF_SIZE);
+        char logmsg[BUF_SIZE];
+        memset(logmsg, 0, BUF_SIZE);
+        sprintf(logmsg, "menu displayed to %s\n", customer_ -> user_name);
+        log_msg(customer_, logmsg);
     }
     else if(strcmp(command, SHOW_RESTAURANTS) == 0){
         char msg [BUF_SIZE];
@@ -267,7 +305,9 @@ void handle_command(customer* customer_, char* input_line){
         tv.tv_sec = 120;
         tv.tv_usec = 0;
         write(STDOUT_FILENO, "waiting for restaurant's response...\n", 37);
+        log_msg(customer_, "waiting for restaurants reply\n");
         enableRawMode();
+        log_msg(customer_, "console locked\n");
         while(1){
             if(select(max_fd + 1, &tmp_fd_set, 0, 0, &tv) < 0){
                 logError("select");
@@ -283,15 +323,18 @@ void handle_command(customer* customer_, char* input_line){
                 char* rest_name = strtok(NULL, DELIM);
                 if(strcmp(ans, FOOD_ACCEPTED) == 0){
                     sprintf(disp_msg, "%s restaurant accepted your order and your food is ready\n", rest_name);
+                    log_msg(customer_, "food arrived\n");
                 }
                 else{
                     sprintf(disp_msg, "%s restaurant rejected your order\n", rest_name);
+                    log_msg(customer_, "food rejected\n");
                 }
                 write(STDOUT_FILENO, disp_msg, BUF_SIZE);
                 break;
             }
             else{
                 logInfo("timeOut");
+                log_msg(customer_, "timeout\n");
                 char msg[BUF_SIZE];
                 memset(msg, 0, BUF_SIZE);
                 sprintf(msg, "%s|%d|", ORDER_EXPIRD, customer_ -> TCP_port);
@@ -302,6 +345,7 @@ void handle_command(customer* customer_, char* input_line){
             }
         }
         disableRawMode();
+        log_msg(customer_, "console unloked\n");
     }
     else if(strcmp(command, REST_CLOSED) == 0){
         char* name = strtok(NULL, DELIM);
@@ -309,6 +353,10 @@ void handle_command(customer* customer_, char* input_line){
         memset(msg, 0, BUF_SIZE);
         sprintf(msg, "%s restaurant closed\n", name);
         write(STDOUT_FILENO, msg, BUF_SIZE);
+        char logmsg[BUF_SIZE];
+        memset(logmsg, 0, BUF_SIZE);
+        sprintf(logmsg, "%s closed restaurant\n", name);
+        log_msg(customer_, logmsg);
     }
 }
 
@@ -355,7 +403,6 @@ void run_customer(customer* customer_){
                 else{
                     char msg[BUFFER_SIZE];
                     memset(msg, 0, BUF_SIZE);
-                    // memset(customer_ -> buf, 0, BUFFER_SIZE);
                     recv(i, msg, BUFFER_SIZE, 0);
                     close(i);
                     FD_CLR(i, &customer_ -> master_set);

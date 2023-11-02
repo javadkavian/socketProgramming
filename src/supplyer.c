@@ -41,6 +41,24 @@ typedef struct supplyer{
 
 
 
+
+void log_msg(supplyer* supplyer_, char* msg){
+    char * filename = malloc(strlen(LOG_DIR) + 1 + strlen(LOG_EXT));
+    sprintf(filename, "%s/%s%s", LOG_DIR, supplyer_ -> user_name, LOG_EXT);
+    int fd = open(filename, O_RDWR | O_APPEND | O_CREAT, 0644);
+    free(filename);
+    if(fd < 0){
+        logError("open");
+        return;
+    }
+    if(write(fd, msg, strlen(msg)) < 0){
+        logError("write");
+    }
+    close(fd);
+}
+
+
+
 void config_supplyer(supplyer* supplyer_, int argc, char* argv[]){
     if(argc != 2){
         logError("port not provided");
@@ -75,9 +93,14 @@ void config_supplyer(supplyer* supplyer_, int argc, char* argv[]){
         supplyer_ -> TCP_port = generate_random_port();
         supplyer_ -> TCP_address.sin_port = htons(supplyer_ -> TCP_port);
     }
+    char logmsg[BUF_SIZE];
+    memset(logmsg, 0, BUF_SIZE);
+    sprintf(logmsg, "binded to TCP port : %d and UDP port : %d\n", supplyer_ -> TCP_port, supplyer_ -> UDP_port);
+    log_msg(supplyer_, logmsg);
     if(listen(supplyer_ -> server_fd, 20) < 0){
         logError("listen");
     }
+    log_msg(supplyer_, "listening for connections\n");
     memset(supplyer_ -> user_name, 0, MAX_NAME_SIZE);
     write(STDOUT_FILENO, ">>please enter your username:", 30);
     supplyer_ -> req_count = 0;
@@ -127,6 +150,10 @@ void username_check(supplyer* supplyer_){
             char tmp_message [BUFFER_SIZE];
             memset(tmp_message, 0, BUF_SIZE);
             sprintf(tmp_message, ">>welcome %s as a supplyer\n", supplyer_ -> user_name);
+            char logmsg[BUF_SIZE];
+            memset(logmsg, 0, BUF_SIZE);
+            sprintf(logmsg, "%s logged in as supplier\n", supplyer_ -> user_name);
+            log_msg(supplyer_, logmsg);
             write(STDOUT_FILENO, tmp_message, BUFFER_SIZE);
             return;
         }
@@ -186,6 +213,7 @@ void handle_command(supplyer* supplyer_, char* input_line){
             strcpy(supplyer_ -> requests[supplyer_ -> req_count].username, rest_name);
             strcpy(supplyer_ -> requests[supplyer_ -> req_count].ing, ing_name);
             supplyer_ -> req_count += 1;
+            log_msg(supplyer_, "new order recieved\n");
         }
         else{
             char* port_str = strtok(NULL, DELIM);
@@ -196,6 +224,7 @@ void handle_command(supplyer* supplyer_, char* input_line){
             int fd = connectServer(port);
             send(fd, resp, BUF_SIZE, 0);
             close(fd);
+            log_msg(supplyer_, "busy now\n");
         }
 
     }
@@ -226,6 +255,10 @@ void handle_command(supplyer* supplyer_, char* input_line){
             }
             int fd = connectServer(supplyer_ -> requests[index].port);
             send(fd, msg, BUF_SIZE, 0);
+            char logmsg[BUF_SIZE];
+            memset(logmsg, 0, BUF_SIZE);
+            sprintf(logmsg, "request of port %d answered\n", supplyer_ -> requests[index].port);
+            log_msg(supplyer_, logmsg);
         }
     }
 }
